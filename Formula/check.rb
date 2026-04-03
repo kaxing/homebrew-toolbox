@@ -1,26 +1,26 @@
 class Check < Formula
   desc "CLI tool checkpoint"
   homepage "https://github.com/kaxing/checkpoint"
-  version "0.0.1"
+  version "0.0.3"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/kaxing/checkpoint/releases/download/v0.0.1/checkpoint-darwin-arm64.tar.gz"
-      sha256 "303953554ddbb6a3777cc4d9fd8661ab1b90ca1a7205eed6e8e4cf412fb23def"
+      url "https://github.com/kaxing/checkpoint/releases/download/v0.0.3/checkpoint-darwin-arm64.tar.gz"
+      sha256 "dadfc7c37ff87e565a32dd3ad579979250470727186f7148876c582567a39c09"
     else
-      url "https://github.com/kaxing/checkpoint/releases/download/v0.0.1/checkpoint-darwin-amd64.tar.gz"
-      sha256 "cf7df8879105a980e4fccefa02ce035c8d51c39a30e5dd7957caa5190490044c"
+      url "https://github.com/kaxing/checkpoint/releases/download/v0.0.3/checkpoint-darwin-amd64.tar.gz"
+      sha256 "6261f166ac53d9a5d95503349cebf8abec15d6f4bcce98b5992e5710fbe6f4bd"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/kaxing/checkpoint/releases/download/v0.0.1/checkpoint-linux-arm64.tar.gz"
-      sha256 "f3d10614f9acfb0dd4a0d423eb4860d0f56ac32e677c8f4dd123215700789675"
+      url "https://github.com/kaxing/checkpoint/releases/download/v0.0.3/checkpoint-linux-arm64.tar.gz"
+      sha256 "c184e13715a7345f06fec5cd2dd345578d813333578899144460862bdc05aaa4"
     else
-      url "https://github.com/kaxing/checkpoint/releases/download/v0.0.1/checkpoint-linux-amd64.tar.gz"
-      sha256 "3c3e9088fe7bd5b1ee7dc5ebb9b3e33b04d163053394396ce3b24cd0f9190939"
+      url "https://github.com/kaxing/checkpoint/releases/download/v0.0.3/checkpoint-linux-amd64.tar.gz"
+      sha256 "00b7a4626978fee93b5c67d857f9e9a93c8c62c03e757aa11a441ddeea1c24e1"
     end
   end
 
