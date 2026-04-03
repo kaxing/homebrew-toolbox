@@ -7,20 +7,20 @@ class Zit < Formula
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/kaxing/zit/releases/download/v0.0.1/zit-darwin-arm64.tar.gz"
-      sha256 "29c26bd856f3ff04214ce232d3b975f819f292c62da72cc15152754cb02856c0"
+      sha256 "4463e13b27586b3a1af3ddc052a80314b087fdee021ec7c5d2b82d05297e2bce"
     else
       url "https://github.com/kaxing/zit/releases/download/v0.0.1/zit-darwin-amd64.tar.gz"
-      sha256 "008a95d7da18ff4eb19065e6043b1733b916c80fb96991f72e4a4008c0b6edcd"
+      sha256 "c4a5a6d36603b25f356723578de9ce3096a3606c677936ec48fb3a4089dc7fd7"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/kaxing/zit/releases/download/v0.0.1/zit-linux-arm64.tar.gz"
-      sha256 "9fb8885fea5d8e690799226760e12d2fcde5eb5946f8298d23a79c40b6de9492"
+      sha256 "beabe9ec614522115f74b591d91fe293e4a1c617d76bda5a7024cb7af804165a"
     else
       url "https://github.com/kaxing/zit/releases/download/v0.0.1/zit-linux-amd64.tar.gz"
-      sha256 "e9a0948d4286d9d5f31410c3b22fd08f00ac78d24838b8ff3b84aaf6bdf49bda"
+      sha256 "eeba39404120477eb2c2f84edd6c1fbd2ec0b19cb5d59eed9a077b4f0e80cd2e"
     end
   end
 
