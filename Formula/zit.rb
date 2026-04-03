@@ -1,26 +1,26 @@
 class Zit < Formula
   desc "CLI tool zit"
   homepage "https://github.com/kaxing/zit"
-  version "0.0.4"
+  version "0.0.5"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/kaxing/zit/releases/download/v0.0.4/zit-darwin-arm64.tar.gz"
-      sha256 "3611a76dda62b8b34ba2038b12385abec34d5d3626a3236c1fd2408541cfa096"
+      url "https://github.com/kaxing/zit/releases/download/v0.0.5/zit-darwin-arm64.tar.gz"
+      sha256 "bd056c149206eafcbb7618b0a3e76b7ac00a4526e6548baa7e4cc75a2179a293"
     else
-      url "https://github.com/kaxing/zit/releases/download/v0.0.4/zit-darwin-amd64.tar.gz"
-      sha256 "09cfcb8d0ed122b1c74ed8978f0f1a759657b4f08801fa1ec8932e4128314d43"
+      url "https://github.com/kaxing/zit/releases/download/v0.0.5/zit-darwin-amd64.tar.gz"
+      sha256 "cd9174401ba21fbfe4333621e005907ef16dee889d479c93f207b585daba9dbb"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/kaxing/zit/releases/download/v0.0.4/zit-linux-arm64.tar.gz"
-      sha256 "db92f6c02c9a4dae32827e38e4c204f00a00f41afaeac19bad8822b1bde0bb9b"
+      url "https://github.com/kaxing/zit/releases/download/v0.0.5/zit-linux-arm64.tar.gz"
+      sha256 "e78a555d01365f2f90b5adb9ad1b10261192b7b102aa0db7f27521aadde5e9c4"
     else
-      url "https://github.com/kaxing/zit/releases/download/v0.0.4/zit-linux-amd64.tar.gz"
-      sha256 "63d5a1f82328f6699d9e27aa2f790553858026cfd533e071cdedd414756ed249"
+      url "https://github.com/kaxing/zit/releases/download/v0.0.5/zit-linux-amd64.tar.gz"
+      sha256 "ce6db0fa8a57d3e788f20493ffb2fde6d2bb588913e0f899db4a0e0d8186531c"
     end
   end
 
