@@ -7,20 +7,20 @@ class Zur < Formula
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/kaxing/zur/releases/download/v0.0.1/zur-darwin-arm64.tar.gz"
-      sha256 "c2e0c79b86e37e1be9fd2ab0693ff0d2e1d7bf0d5d2cd949a58aaaaf5f6426db"
+      sha256 "cef802948df74a1416da79cafcb5dba2e39648d4b266e6d3eba33bc0245ea0e5"
     else
       url "https://github.com/kaxing/zur/releases/download/v0.0.1/zur-darwin-amd64.tar.gz"
-      sha256 "f49b28dbc66a364152414a1618712bcad96929c9448a457758413400f8194ed7"
+      sha256 "60d89afd0ace0e4b476462f7bf3c84cc9fc9dc3ab2478318f7f1fe2188207f49"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/kaxing/zur/releases/download/v0.0.1/zur-linux-arm64.tar.gz"
-      sha256 "797a12a62050c5de0e7b5d93a960c7d50c5dfe7c358ecf0f75aad5680ecdc38a"
+      sha256 "a35a4ecfcfbb037126fae6a56557f19bf10fa41e72babf5e8725fb9f2170490c"
     else
       url "https://github.com/kaxing/zur/releases/download/v0.0.1/zur-linux-amd64.tar.gz"
-      sha256 "4231502baedd7369cb7fb561c5b8fd6924c79e016a77426e941a5b26f40f7a7d"
+      sha256 "1addc512ad92d54f80f262b6afce2589b0f7d01024d188f1d7ad55abd36e87b2"
     end
   end
 
