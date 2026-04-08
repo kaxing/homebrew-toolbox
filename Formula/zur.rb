@@ -1,26 +1,26 @@
 class Zur < Formula
   desc "CLI tool zur"
   homepage "https://github.com/kaxing/zur"
-  version "0.0.2"
+  version "0.0.4"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/kaxing/zur/releases/download/v0.0.2/zur-darwin-arm64.tar.gz"
-      sha256 "0774f472c31cbef2fdf201a37b057d3b08fd6cca07a758a28b64ebf5cd031f73"
+      url "https://github.com/kaxing/zur/releases/download/v0.0.4/zur-darwin-arm64.tar.gz"
+      sha256 "e7bf74e2212df98f11cbe088f8cff0c0da3543efcecb1f83c7c642caefbbd2be"
     else
-      url "https://github.com/kaxing/zur/releases/download/v0.0.2/zur-darwin-amd64.tar.gz"
-      sha256 "42498082440114863b66f3c3009c89c3ffcb9c0518f533e9574444d0f9766ded"
+      url "https://github.com/kaxing/zur/releases/download/v0.0.4/zur-darwin-amd64.tar.gz"
+      sha256 "22e459e4e30194f23a7349cbe6ffdfad181e2ec2a1cef7156a3077fbbc2bceb8"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/kaxing/zur/releases/download/v0.0.2/zur-linux-arm64.tar.gz"
-      sha256 "87c36a44c86a184494597b474f766e8bedea3abd57f4a0d4227091b6348c49c1"
+      url "https://github.com/kaxing/zur/releases/download/v0.0.4/zur-linux-arm64.tar.gz"
+      sha256 "c7222f5500d45ea49724292b98a292c5616fa76696d94c745547df30ab9f0e69"
     else
-      url "https://github.com/kaxing/zur/releases/download/v0.0.2/zur-linux-amd64.tar.gz"
-      sha256 "928a287c8a8095f4ac49c8ecb4888db92de9ee8de8c1ef9be1e91dc8239ffd9a"
+      url "https://github.com/kaxing/zur/releases/download/v0.0.4/zur-linux-amd64.tar.gz"
+      sha256 "b22ced6ef7f8390bdc46b79b4af68bb70ad43702f4c75a4d52f16c8baa45a624"
     end
   end
 
