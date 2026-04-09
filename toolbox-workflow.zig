@@ -5,6 +5,7 @@ const Args = struct {
     repo: []const u8 = "",
     tap: []const u8 = "",
     tag: []const u8 = "",
+    bump: []const u8 = "patch",
     formula: []const u8 = "",
     workdir: []const u8 = ".",
     tap_dir: []const u8 = "tap-repo",
@@ -18,17 +19,25 @@ pub fn main() !void {
     const a = std.heap.page_allocator;
     const args = try parseArgs(a);
 
-    if (args.repo.len == 0 or args.tap.len == 0 or args.tag.len == 0) {
+    if (args.repo.len == 0 or args.tap.len == 0) {
         help();
         return error.InvalidArguments;
     }
+
+    const token = if (!args.dry)
+        (std.posix.getenv("GITHUB_TOKEN") orelse std.posix.getenv("GH_TOKEN") orelse {
+            std.debug.print("error: GITHUB_TOKEN or GH_TOKEN is required\n", .{});
+            return error.MissingToken;
+        })
+    else
+        "";
 
     const repo = try splitPair(args.repo);
     const tap = try splitPair(args.tap);
     const formula_name = if (args.formula.len > 0) args.formula else repo.name;
     const bin_name = formula_name;
 
-    const source_root = try std.fmt.allocPrint(a, "{s}/source-repos", .{args.workdir});
+    const source_root = try std.fmt.allocPrint(a, "{s}/code-repos", .{args.workdir});
     defer a.free(source_root);
     try std.fs.cwd().makePath(source_root);
 
@@ -46,16 +55,13 @@ pub fn main() !void {
 
     std.debug.print("==> source: {s}\n", .{src});
     try ensureSourceRepo(a, src, repo.owner, repo.name);
+    try ensureCleanRepo(a, src);
+    try fetchTagsMaybeAuth(a, src);
 
-    // Ensure tag exists
-    const tag_ref = try std.fmt.allocPrint(a, "refs/tags/{s}", .{args.tag});
-    defer a.free(tag_ref);
-    _ = cap(a, &.{ "git", "-C", src, "rev-parse", "--verify", tag_ref }) catch {
-        std.debug.print("error: missing tag {s} in {s}\n", .{ args.tag, src });
-        return error.MissingTag;
-    };
+    const release_tag = try resolveReleaseTag(a, src, args.tag, args.bump, args.dry);
+    defer a.free(release_tag);
 
-    const work = try std.fmt.allocPrint(a, "/tmp/{s}-release-{s}", .{ repo.name, args.tag });
+    const work = try std.fmt.allocPrint(a, "/tmp/{s}-release-{s}", .{ repo.name, release_tag });
     defer a.free(work);
     try std.fs.cwd().makePath(work);
 
@@ -104,7 +110,6 @@ pub fn main() !void {
         try shas.put(try a.dupe(u8, t.suffix), try a.dupe(u8, tok(trim(sr))));
     }
 
-    // checksums.txt
     const checks = try std.fmt.allocPrint(a, "{s}/checksums.txt", .{work});
     defer a.free(checks);
     const checks_data = try std.fmt.allocPrint(a,
@@ -115,12 +120,7 @@ pub fn main() !void {
     try std.fs.cwd().writeFile(.{ .sub_path = checks, .data = checks_data });
 
     if (!args.dry) {
-        const token = std.posix.getenv("GITHUB_TOKEN") orelse std.posix.getenv("GH_TOKEN") orelse {
-            std.debug.print("error: GITHUB_TOKEN or GH_TOKEN is required\n", .{});
-            return error.MissingToken;
-        };
-
-        const rel = try ensureRelease(a, token, repo.owner, repo.name, args.tag);
+        const rel = try ensureRelease(a, token, repo.owner, repo.name, release_tag);
         std.debug.print("==> release: {s}\n", .{rel.html_url});
 
         const base_upload = trimUploadUrl(rel.upload_url);
@@ -139,12 +139,11 @@ pub fn main() !void {
         std.debug.print("==> dry-run: skip release upload\n", .{});
     }
 
-    // write formula in tap repo
     const formula = try std.fmt.allocPrint(a, "{s}/Formula/{s}.rb", .{ tap_dir, formula_name });
     defer a.free(formula);
     try std.fs.cwd().makePath(try std.fmt.allocPrint(a, "{s}/Formula", .{tap_dir}));
 
-    const version = if (std.mem.startsWith(u8, args.tag, "v")) args.tag[1..] else args.tag;
+    const version = if (std.mem.startsWith(u8, release_tag, "v")) release_tag[1..] else release_tag;
     const content = try std.fmt.allocPrint(a,
         \\class {s} < Formula
         \\  desc "CLI tool {s}"
@@ -183,10 +182,10 @@ pub fn main() !void {
         \\
     , .{
         try className(a, formula_name), repo.name, repo.owner, repo.name, version,
-        repo.owner, repo.name, args.tag, repo.name, shas.get("darwin-arm64").?,
-        repo.owner, repo.name, args.tag, repo.name, shas.get("darwin-amd64").?,
-        repo.owner, repo.name, args.tag, repo.name, shas.get("linux-arm64").?,
-        repo.owner, repo.name, args.tag, repo.name, shas.get("linux-amd64").?,
+        repo.owner, repo.name, release_tag, repo.name, shas.get("darwin-arm64").?,
+        repo.owner, repo.name, release_tag, repo.name, shas.get("darwin-amd64").?,
+        repo.owner, repo.name, release_tag, repo.name, shas.get("linux-arm64").?,
+        repo.owner, repo.name, release_tag, repo.name, shas.get("linux-amd64").?,
         bin_name, bin_name,
     });
     defer a.free(content);
@@ -194,7 +193,7 @@ pub fn main() !void {
 
     if (!args.dry) {
         try run(a, &.{ "git", "-C", tap_dir, "add", "Formula" });
-        const msg = try std.fmt.allocPrint(a, "chore(formula): release {s} {s}", .{ repo.name, args.tag });
+        const msg = try std.fmt.allocPrint(a, "chore(formula): release {s} {s}", .{ repo.name, release_tag });
         defer a.free(msg);
         run(a, &.{ "git", "-C", tap_dir, "commit", "-m", msg }) catch {};
         if (!args.no_push) try pushMaybeAuth(a, tap_dir);
@@ -202,7 +201,7 @@ pub fn main() !void {
         std.debug.print("==> dry-run: skip tap commit/push\n", .{});
     }
 
-    std.debug.print("done: {s} {s}\n", .{ args.repo, args.tag });
+    std.debug.print("done: {s} {s}\n", .{ args.repo, release_tag });
     std.debug.print("tap install: brew install {s}/{s}/{s}\n", .{ tap.owner, tap.nameNoPrefix(), formula_name });
 }
 
@@ -362,6 +361,31 @@ fn pullMaybeAuth(a: std.mem.Allocator, dir: []const u8) !void {
     };
 }
 
+fn fetchTagsMaybeAuth(a: std.mem.Allocator, dir: []const u8) !void {
+    run(a, &.{ "env", "GIT_TERMINAL_PROMPT=0", "git", "-C", dir, "fetch", "--tags", "--force", "origin" }) catch {
+        const token = std.posix.getenv("GITHUB_TOKEN") orelse std.posix.getenv("GH_TOKEN") orelse return error.CommandFailed;
+        const o = try cap(a, &.{ "git", "-C", dir, "remote", "get-url", "origin" });
+        defer a.free(o);
+        const old = trim(o);
+        if (!std.mem.startsWith(u8, old, "https://github.com/")) return error.CommandFailed;
+        const tail = old["https://github.com/".len..];
+        const nu = try std.fmt.allocPrint(a, "https://x-access-token:{s}@github.com/{s}", .{ token, tail });
+        defer a.free(nu);
+        try run(a, &.{ "git", "-C", dir, "remote", "set-url", "origin", nu });
+        defer run(a, &.{ "git", "-C", dir, "remote", "set-url", "origin", old }) catch {};
+        try run(a, &.{ "env", "GIT_TERMINAL_PROMPT=0", "git", "-C", dir, "fetch", "--tags", "--force", "origin" });
+    };
+}
+
+fn ensureCleanRepo(a: std.mem.Allocator, dir: []const u8) !void {
+    const s = try cap(a, &.{ "git", "-C", dir, "status", "--porcelain" });
+    defer a.free(s);
+    if (trim(s).len > 0) {
+        std.debug.print("error: source repo has local changes, please commit/stash/reset first: {s}\n", .{dir});
+        return error.DirtyRepo;
+    }
+}
+
 fn cloneMaybeAuth(a: std.mem.Allocator, owner: []const u8, name: []const u8, dir: []const u8) !void {
     const pub_url = try std.fmt.allocPrint(a, "https://github.com/{s}/{s}", .{ owner, name });
     defer a.free(pub_url);
@@ -371,8 +395,101 @@ fn cloneMaybeAuth(a: std.mem.Allocator, owner: []const u8, name: []const u8, dir
         const auth_url = try std.fmt.allocPrint(a, "https://x-access-token:{s}@github.com/{s}/{s}", .{ token, owner, name });
         defer a.free(auth_url);
         try run(a, &.{ "env", "GIT_TERMINAL_PROMPT=0", "git", "clone", auth_url, dir });
-        // restore origin URL to clean non-token URL
         try run(a, &.{ "git", "-C", dir, "remote", "set-url", "origin", pub_url });
+    };
+}
+
+fn resolveReleaseTag(a: std.mem.Allocator, dir: []const u8, requested: []const u8, bump: []const u8, dry: bool) ![]u8 {
+    const head = try cap(a, &.{ "git", "-C", dir, "rev-parse", "--short", "HEAD" });
+    defer a.free(head);
+
+    if (requested.len > 0) {
+        std.debug.print("==> source: head={s}, requested_tag={s}\n", .{ trim(head), requested });
+        try ensureTag(a, dir, requested, dry);
+        return a.dupe(u8, requested);
+    }
+
+    const head_tags_out = try cap(a, &.{ "git", "-C", dir, "tag", "--points-at", "HEAD", "--list", "v*", "--sort=-v:refname" });
+    defer a.free(head_tags_out);
+    const head_tag = firstLine(trim(head_tags_out));
+    if (head_tag.len > 0) {
+        std.debug.print("==> source: head={s}, using_head_tag={s}\n", .{ trim(head), head_tag });
+        return a.dupe(u8, head_tag);
+    }
+
+    const latest_out = try cap(a, &.{ "git", "-C", dir, "tag", "--merged", "HEAD", "--list", "v*", "--sort=-v:refname" });
+    defer a.free(latest_out);
+    const latest = firstLine(trim(latest_out));
+
+    const next = if (latest.len == 0)
+        try a.dupe(u8, "v0.0.1")
+    else
+        try bumpTag(a, latest, bump);
+
+    if (latest.len == 0)
+        std.debug.print("==> source: head={s}, latest_tag=(none), next_tag={s}\n", .{ trim(head), next })
+    else
+        std.debug.print("==> source: head={s}, latest_tag={s}, next_tag={s}\n", .{ trim(head), latest, next });
+
+    try ensureTag(a, dir, next, dry);
+    return next;
+}
+
+fn bumpTag(a: std.mem.Allocator, tag: []const u8, bump: []const u8) ![]u8 {
+    if (!std.mem.startsWith(u8, tag, "v")) return error.InvalidTag;
+    var it = std.mem.splitScalar(u8, tag[1..], '.');
+    const maj_s = it.next() orelse return error.InvalidTag;
+    const min_s = it.next() orelse return error.InvalidTag;
+    const pat_s = it.next() orelse return error.InvalidTag;
+    if (it.next() != null) return error.InvalidTag;
+
+    const maj = std.fmt.parseInt(u32, maj_s, 10) catch return error.InvalidTag;
+    const min = std.fmt.parseInt(u32, min_s, 10) catch return error.InvalidTag;
+    const pat = std.fmt.parseInt(u32, pat_s, 10) catch return error.InvalidTag;
+
+    if (eq(bump, "patch")) return std.fmt.allocPrint(a, "v{d}.{d}.{d}", .{ maj, min, pat + 1 });
+    if (eq(bump, "minor")) return std.fmt.allocPrint(a, "v{d}.{d}.0", .{ maj, min + 1 });
+    if (eq(bump, "major")) return std.fmt.allocPrint(a, "v{d}.0.0", .{ maj + 1 });
+    return error.InvalidBump;
+}
+
+fn firstLine(s: []const u8) []const u8 {
+    const i = std.mem.indexOfScalar(u8, s, '\n') orelse return s;
+    return s[0..i];
+}
+
+fn ensureTag(a: std.mem.Allocator, dir: []const u8, tag: []const u8, dry: bool) !void {
+    const tag_ref = try std.fmt.allocPrint(a, "refs/tags/{s}", .{tag});
+    defer a.free(tag_ref);
+
+    _ = cap(a, &.{ "git", "-C", dir, "rev-parse", "--verify", tag_ref }) catch {
+        if (dry) {
+            std.debug.print("==> dry-run: would create missing tag {s} at HEAD\n", .{tag});
+            return;
+        }
+
+        std.debug.print("==> source: missing tag {s}, creating at HEAD\n", .{tag});
+        try run(a, &.{ "git", "-C", dir, "tag", tag });
+        pushTagMaybeAuth(a, dir, tag) catch |err| {
+            std.debug.print("error: failed to push tag {s}: {s}\n", .{ tag, @errorName(err) });
+            return err;
+        };
+    };
+}
+
+fn pushTagMaybeAuth(a: std.mem.Allocator, dir: []const u8, tag: []const u8) !void {
+    run(a, &.{ "env", "GIT_TERMINAL_PROMPT=0", "git", "-C", dir, "push", "origin", tag }) catch {
+        const token = std.posix.getenv("GITHUB_TOKEN") orelse std.posix.getenv("GH_TOKEN") orelse return error.CommandFailed;
+        const o = try cap(a, &.{ "git", "-C", dir, "remote", "get-url", "origin" });
+        defer a.free(o);
+        const old = trim(o);
+        if (!std.mem.startsWith(u8, old, "https://github.com/")) return error.CommandFailed;
+        const tail = old["https://github.com/".len..];
+        const nu = try std.fmt.allocPrint(a, "https://x-access-token:{s}@github.com/{s}", .{ token, tail });
+        defer a.free(nu);
+        try run(a, &.{ "git", "-C", dir, "remote", "set-url", "origin", nu });
+        defer run(a, &.{ "git", "-C", dir, "remote", "set-url", "origin", old }) catch {};
+        try run(a, &.{ "env", "GIT_TERMINAL_PROMPT=0", "git", "-C", dir, "push", "origin", tag });
     };
 }
 
@@ -401,6 +518,12 @@ fn parseArgs(a: std.mem.Allocator) !Args {
         if (eq(s, "--repo")) { i += 1; if (i >= av.len) return error.InvalidArguments; o.repo = av[i]; }
         else if (eq(s, "--tap")) { i += 1; if (i >= av.len) return error.InvalidArguments; o.tap = av[i]; }
         else if (eq(s, "--tag")) { i += 1; if (i >= av.len) return error.InvalidArguments; o.tag = av[i]; }
+        else if (eq(s, "--bump")) {
+            i += 1;
+            if (i >= av.len) return error.InvalidArguments;
+            if (!eq(av[i], "minor") and !eq(av[i], "major")) return error.InvalidArguments;
+            o.bump = av[i];
+        }
         else if (eq(s, "--formula")) { i += 1; if (i >= av.len) return error.InvalidArguments; o.formula = av[i]; }
         else if (eq(s, "--workdir")) { i += 1; if (i >= av.len) return error.InvalidArguments; o.workdir = av[i]; }
         else if (eq(s, "--tap-dir")) { i += 1; if (i >= av.len) return error.InvalidArguments; o.tap_dir = av[i]; }
@@ -414,7 +537,7 @@ fn parseArgs(a: std.mem.Allocator) !Args {
 
 fn help() void {
     std.debug.print(
-        "toolbox-workflow.zig --repo user/name --tap user/homebrew-tap --tag vX.Y.Z [--formula name] [--workdir path] [--tap-dir path] [--dry-run] [--no-push]\n",
+        "toolbox-workflow.zig --repo user/name --tap user/homebrew-tap [--tag vX.Y.Z] [--bump minor|major] [--formula name] [--workdir path] [--tap-dir path] [--dry-run] [--no-push]\n",
         .{},
     );
 }
